@@ -25,7 +25,6 @@ curl -X POST https://deploy2-production-3023.up.railway.app/ask \
 ## Environment Variables Set
 - PORT=8000
 - AGENT_API_KEY=dev-key-change-me-in-production (change in production!)
-- REDIS_URL (if using Redis)
 
 ## Screenshots
 - [Deployment dashboard](screenshots/dashboard.png)
