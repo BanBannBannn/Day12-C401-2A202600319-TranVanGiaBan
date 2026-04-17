@@ -238,6 +238,7 @@ def health():
     status = "ok"
     checks = {"llm": "mock" if not settings.openai_api_key else "openai"}
     return {
+        "test": "ok",
         "status": status,
         "version": settings.app_version,
         "environment": settings.environment,
