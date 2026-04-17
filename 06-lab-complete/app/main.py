@@ -30,6 +30,9 @@ from pydantic import BaseModel, Field
 import uvicorn
 
 from app.config import settings
+from app.auth import verify_api_key
+from app.rate_limiter import rate_limiter
+from app.cost_guard import cost_guard
 
 # Mock LLM (thay bằng OpenAI/Anthropic khi có API key)
 from utils.mock_llm import ask as llm_ask
@@ -145,7 +148,9 @@ async def request_middleware(request: Request, call_next):
         # Security headers
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
-        response.headers.pop("server", None)
+        # response.headers.pop("server", None)
+        if "server" in response.headers:
+            del response.headers["server"]
         duration = round((time.time() - start) * 1000, 1)
         logger.info(json.dumps({
             "event": "request",
@@ -202,11 +207,11 @@ async def ask_agent(
     **Authentication:** Include header `X-API-Key: <your-key>`
     """
     # Rate limit per API key
-    check_rate_limit(_key[:8])  # use first 8 chars as key bucket
+    rate_limiter.check(_key[:8])  # use first 8 chars as key bucket
 
     # Budget check
     input_tokens = len(body.question.split()) * 2
-    check_and_record_cost(input_tokens, 0)
+    cost_guard.check_budget(_key[:8], (input_tokens / 1000) * 0.00015)
 
     logger.info(json.dumps({
         "event": "agent_call",
@@ -217,7 +222,7 @@ async def ask_agent(
     answer = llm_ask(body.question)
 
     output_tokens = len(answer.split()) * 2
-    check_and_record_cost(0, output_tokens)
+    usage = cost_guard.record_usage(_key[:8], input_tokens, output_tokens)
 
     return AskResponse(
         question=body.question,
@@ -254,13 +259,14 @@ def ready():
 @app.get("/metrics", tags=["Operations"])
 def metrics(_key: str = Depends(verify_api_key)):
     """Basic metrics (protected)."""
+    usage = cost_guard.get_usage(_key[:8])
     return {
         "uptime_seconds": round(time.time() - START_TIME, 1),
         "total_requests": _request_count,
         "error_count": _error_count,
-        "daily_cost_usd": round(_daily_cost, 4),
-        "daily_budget_usd": settings.daily_budget_usd,
-        "budget_used_pct": round(_daily_cost / settings.daily_budget_usd * 100, 1),
+        "monthly_spending_usd": usage["monthly_spending_usd"],
+        "monthly_budget_usd": usage["monthly_budget_usd"],
+        "budget_used_pct": round(usage["monthly_spending_usd"] / usage["monthly_budget_usd"] * 100, 1) if usage["monthly_budget_usd"] > 0 else 0,
     }
 
 
