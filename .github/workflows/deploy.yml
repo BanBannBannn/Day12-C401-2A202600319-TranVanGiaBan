@@ -42,27 +42,27 @@ jobs:
         cd 06-lab-complete
         docker build -t agent-test .
 
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+  # deploy:
+  #   needs: test
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Install Railway CLI
-      run: |
-        npm install -g @railway/cli
+  #   - name: Install Railway CLI
+  #     run: |
+  #       npm install -g @railway/cli
 
-    - name: Deploy to Railway
-      run: |
-        cd 06-lab-complete
-        railway up
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  #   - name: Deploy to Railway
+  #     run: |
+  #       cd 06-lab-complete
+  #       railway up
+  #     env:
+  #       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-    - name: Health check after deployment
-      run: |
-        sleep 30
-        curl -f https://deploy2-production-3023.up.railway.app/health || exit 1
+  #   - name: Health check after deployment
+  #     run: |
+  #       sleep 30
+  #       curl -f https://deploy2-production-3023.up.railway.app/health || exit 1
